@@ -67,15 +67,13 @@ class BertPointer(BertPreTrainedModel):
 
         # extraction classifier
         output = bert_outputs[0]
-        ext_mask = ext_mask.unsqueeze(-1)
-        ext_start_logits = self.ext_start_classifier(output) * ext_mask
-        ext_end_logits = self.ext_end_classifier(output) * ext_mask
+        ext_start_logits = self.ext_start_classifier(output).squeeze(-1) * ext_mask
+        ext_end_logits = self.ext_end_classifier(output).squeeze(-1) * ext_mask
 
         # augmentation classifier
         output = bert_outputs[0]
-        aug_mask = aug_mask.unsqueeze(-1)
-        aug_start_logits = self.aug_start_classifier(output) * aug_mask
-        aug_end_logits = self.aug_end_classifier(output) * aug_mask
+        aug_start_logits = self.aug_start_classifier(output).squeeze(-1) * aug_mask
+        aug_end_logits = self.aug_end_classifier(output).squeeze(-1) * aug_mask
 
         span_logits = (ext_start_logits, ext_end_logits, aug_start_logits, aug_end_logits,)
         outputs = (label_logits,) + span_logits + bert_outputs[2:]
@@ -94,12 +92,12 @@ class BertPointer(BertPreTrainedModel):
                 labels_loss = loss_fct(label_logits.view(-1, self.num_labels), labels.view(-1))
 
                 # extraction loss
-                ext_start_loss = loss_fct(ext_start_logits.squeeze(), ext_start_labels)
-                ext_end_loss = loss_fct(ext_end_logits.squeeze(), ext_end_labels)
+                ext_start_loss = loss_fct(ext_start_logits, ext_start_labels)
+                ext_end_loss = loss_fct(ext_end_logits, ext_end_labels)
 
                 # augmentation loss
-                aug_start_loss = loss_fct(aug_start_logits.squeeze(), aug_start_labels)
-                aug_end_loss = loss_fct(aug_end_logits.squeeze(), aug_end_labels)
+                aug_start_loss = loss_fct(aug_start_logits, aug_start_labels)
+                aug_end_loss = loss_fct(aug_end_logits, aug_end_labels)
 
                 span_loss = (ext_start_loss + ext_end_loss + aug_start_loss + aug_end_loss) / 4
 
