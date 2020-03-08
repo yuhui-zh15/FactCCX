@@ -38,7 +38,7 @@ from pytorch_transformers import (WEIGHTS_NAME, BertConfig, BertForSequenceClass
 from pytorch_transformers import AdamW, WarmupLinearSchedule
 
 logger = logging.getLogger(__name__)
-wandb.init(project="entailment-metric")
+#wandb.init(project="entailment-metric")
 
 ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) for conf in (BertConfig,)), ())
 
@@ -463,7 +463,7 @@ def main():
 
     model.to(args.device)
 
-    wandb.watch(model)
+    #wandb.watch(model)
     logger.info("Training/evaluation parameters %s", args)
 
 
@@ -505,6 +505,7 @@ def main():
             logging.getLogger("pytorch_transformers.modeling_utils").setLevel(logging.WARN)  # Reduce logging
         logger.info("Evaluate the following checkpoints: %s", checkpoints)
         for checkpoint in checkpoints:
+            print(checkpoint)
             global_step = checkpoint.split('-')[-1] if len(checkpoints) > 1 else ""
             model = model_class.from_pretrained(checkpoint)
             model.to(args.device)
