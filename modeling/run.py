@@ -206,67 +206,78 @@ def train(args, train_dataset, model, tokenizer):
 
 def evaluate(args, model, tokenizer, prefix=""):
     # Loop to handle MNLI double evaluation (matched, mis-matched)
-    eval_task_names = (args.task_name,)
-    eval_outputs_dirs = (args.output_dir,)
+    eval_task = args.task_name
+    eval_output_dir = args.output_dir
 
     results = {}
     cnt = 0
-    for eval_task, eval_output_dir in zip(eval_task_names, eval_outputs_dirs):
-        eval_dataset = load_and_cache_examples(args, eval_task, tokenizer, evaluate=True)
 
-        if not os.path.exists(eval_output_dir) and args.local_rank in [-1, 0]:
-            os.makedirs(eval_output_dir)
+    eval_dataset, raw_texts = load_and_cache_examples(args, eval_task, tokenizer, evaluate=True)
+    if not os.path.exists(eval_output_dir) and args.local_rank in [-1, 0]:
+        os.makedirs(eval_output_dir)
 
-        args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
-        # Note that DistributedSampler samples randomly
-        eval_sampler = SequentialSampler(eval_dataset) if args.local_rank == -1 else DistributedSampler(eval_dataset)
-        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
+    args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
+    # Note that DistributedSampler samples randomly
+    eval_sampler = SequentialSampler(eval_dataset) if args.local_rank == -1 else DistributedSampler(eval_dataset)
+    eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
-        # Eval!
-        logger.info("***** Running evaluation {} *****".format(prefix))
-        logger.info("  Num examples = %d", len(eval_dataset))
-        logger.info("  Batch size = %d", args.eval_batch_size)
+    # Eval!
+    logger.info("***** Running evaluation {} *****".format(prefix))
+    logger.info("  Num examples = %d", len(eval_dataset))
+    logger.info("  Batch size = %d", args.eval_batch_size)
 
-        eval_loss = 0.0
-        nb_eval_steps = 0
-        preds = None
-        out_label_ids = None
+    eval_loss = 0.0
+    nb_eval_steps = 0
+    preds = None
+    out_label_ids = None
+    spans = []
+    ext_starts, ext_ends, aug_starts, aug_ends = [], [], [], []
 
-        for batch in tqdm(eval_dataloader, desc="Evaluating"):
-            model.eval()
-            batch = tuple(t.to(args.device) for t in batch)
+    for batch in tqdm(eval_dataloader, desc="Evaluating"):
+        model.eval()
+        batch = tuple(t.to(args.device) for t in batch)
 
-            with torch.no_grad():
-                inputs = make_model_input(args, batch)
-                outputs = model(**inputs)
+        with torch.no_grad():
+            inputs = make_model_input(args, batch)
+            outputs = model(**inputs)
 
-                # monitoring
-                tmp_eval_loss = outputs[0]
-                logits_ix = 1 if args.model_type == "bert" else 7
-                logits = outputs[logits_ix]
-                eval_loss += tmp_eval_loss.mean().item()
-                nb_eval_steps += 1
+            # monitoring
+            tmp_eval_loss = outputs[0]
+            logits_ix = 1 if args.model_type == "bert" else 7
+            logits = outputs[logits_ix]
+            eval_loss += tmp_eval_loss.mean().item()
+            nb_eval_steps += 1
 
-            if preds is None:
-                preds = logits.detach().cpu().numpy()
-                out_label_ids = inputs['labels'].detach().cpu().numpy()
-            else:
-                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                out_label_ids = np.append(out_label_ids, inputs['labels'].detach().cpu().numpy(), axis=0)
+            if args.model_type == "pbert":
+                ext_start_logits, ext_end_logits, aug_start_logits, aug_end_logits = outputs[8], outputs[9], outputs[10], outputs[11]
+                ext_start, ext_end, aug_start, aug_end = ext_start_logits.max(1)[1].tolist(), ext_end_logits.max(1)[1].tolist(), aug_start_logits.max(1)[1].tolist(), aug_end_logits.max(1)[1].tolist()
+                span = list(zip(ext_start, ext_end, aug_start, aug_end))     
+                spans += span
+                    
 
-        preds = np.argmax(preds, axis=1)
-        result = compute_metrics(args.task_name, preds, out_label_ids)
-        eval_loss = eval_loss / nb_eval_steps
-        result["loss"] = eval_loss
-        results.update(result)
+        if preds is None:
+            preds = logits.detach().cpu().numpy()
+            out_label_ids = inputs['labels'].detach().cpu().numpy()
+        else:
+            preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+            out_label_ids = np.append(out_label_ids, inputs['labels'].detach().cpu().numpy(), axis=0)
 
-        output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
-        with open(output_eval_file, "w") as writer:
-            logger.info("***** Eval results {} *****".format(prefix))
-            for key in sorted(results.keys()):
-                logger.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
+    preds = np.argmax(preds, axis=1)
+    result = compute_metrics(args.task_name, preds, out_label_ids)
+    eval_loss = eval_loss / nb_eval_steps
+    result["loss"] = eval_loss
+    results.update(result)
 
+    output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
+    with open(output_eval_file, "w") as writer:
+        logger.info("***** Eval results {} *****".format(prefix))
+        for key in sorted(results.keys()):
+            logger.info("  %s = %s", key, str(result[key]))
+            writer.write("%s = %s\n" % (key, str(result[key])))
+    preds = preds.tolist()
+    print(raw_texts)
+    print(preds)
+    print(spans)
     return results
 
 
@@ -289,7 +300,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
         logger.info("Creating features from dataset file at %s", args.data_dir)
         label_list = processor.get_labels()
         examples = processor.get_dev_examples(args.data_dir) if evaluate else processor.get_train_examples(args.data_dir)
-        features = convert_examples_to_features(examples, label_list, args.max_seq_length, tokenizer, output_mode,
+        features, raw_texts = convert_examples_to_features(examples, label_list, args.max_seq_length, tokenizer, output_mode,
             cls_token_at_end=bool(args.model_type in ['xlnet']),            # xlnet has a cls token at the end
             cls_token=tokenizer.cls_token,
             cls_token_segment_id=2 if args.model_type in ['xlnet'] else 0,
@@ -324,7 +335,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
     dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids,
                             all_ext_mask, all_ext_start_ids, all_ext_end_ids,
                             all_aug_mask, all_aug_start_ids, all_aug_end_ids)
-    return dataset
+    return dataset, raw_texts
 
 
 def main():
@@ -505,7 +516,6 @@ def main():
             logging.getLogger("pytorch_transformers.modeling_utils").setLevel(logging.WARN)  # Reduce logging
         logger.info("Evaluate the following checkpoints: %s", checkpoints)
         for checkpoint in checkpoints:
-            print(checkpoint)
             global_step = checkpoint.split('-')[-1] if len(checkpoints) > 1 else ""
             model = model_class.from_pretrained(checkpoint)
             model.to(args.device)

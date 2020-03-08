@@ -195,6 +195,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     label_map = {label : i for i, label in enumerate(label_list)}
 
     features = []
+    raw_texts = []
     for (ex_index, example) in enumerate(examples):
         if ex_index % 10000 == 0:
             logger.info("Writing example %d of %d" % (ex_index, len(examples)))
@@ -333,7 +334,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
                           augmentation_mask=augmentation_mask,
                           augmentation_start_ids=augmentation_start_ids,
                           augmentation_end_ids=augmentation_end_ids))
-    return features
+
+        raw_texts.append([tokens_a, tokens_b, tokens])
+    return features, raw_texts
 
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     """Truncates a sequence pair in place to the maximum length."""
