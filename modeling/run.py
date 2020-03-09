@@ -26,6 +26,7 @@ import random
 import wandb
 import numpy as np
 import torch
+import scipy
 
 from model import BertPointer
 from utils import (compute_metrics, convert_examples_to_features, output_modes, processors)
@@ -262,7 +263,7 @@ def evaluate(args, model, tokenizer, prefix=""):
             preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
             out_label_ids = np.append(out_label_ids, inputs['labels'].detach().cpu().numpy(), axis=0)
 
-    preds = np.argmax(preds, axis=1)
+    confs, preds = np.max(scipy.special.softmax(preds, axis=1), axis=1), np.argmax(preds, axis=1)
     result = compute_metrics(args.task_name, preds, out_label_ids)
     eval_loss = eval_loss / nb_eval_steps
     result["loss"] = eval_loss
@@ -275,9 +276,20 @@ def evaluate(args, model, tokenizer, prefix=""):
             logger.info("  %s = %s", key, str(result[key]))
             writer.write("%s = %s\n" % (key, str(result[key])))
     preds = preds.tolist()
-    print(raw_texts)
-    print(preds)
-    print(spans)
+    confs = confs.tolist()
+    
+    # ---------------------------------------------------------------------------
+    fout = open('output.txt', 'w')
+    for pred, conf, span, raw_text in zip(preds, confs, spans, raw_texts):
+        label = 'CORRECT' if pred == 0 else 'INCORRECT'
+        src = raw_text[2][span[0]: span[1]]
+        gen = raw_text[2][span[2]: span[3]]
+        fout.write(label + '\t' + str(conf) + '\n')
+        fout.write(' '.join(src) + '\n')
+        fout.write(' '.join(gen) + '\n')
+        fout.write('-'*63+'\n')
+    # ---------------------------------------------------------------------------
+
     return results
 
 
