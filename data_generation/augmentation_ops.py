@@ -46,7 +46,7 @@ class Transformation():
 
     def __init__(self):
         # Spacy toolkit used for all NLP-related substeps
-        self.spacy = spacy.load("en")
+        self.spacy = spacy.load("en_core_web_sm")
 
     def transform(self, example):
         # Function applies transformation on passed example
@@ -352,7 +352,7 @@ class AddNoise(Transformation):
 
         self.noise_prob = noise_prob
         self.delete_prob = delete_prob
-        self.spacy = spacy.load("en")
+        self.spacy = spacy.load("en_core_web_sm")
 
     def transform(self, example):
         assert example["text"] is not None, "Text must be available"
