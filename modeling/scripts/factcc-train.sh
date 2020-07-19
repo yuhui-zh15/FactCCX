@@ -2,14 +2,15 @@
 # Train FactCC model
 
 # UPDATE PATHS BEFORE RUNNING SCRIPT
-export CODE_PATH= # absolute path to modeling directory
-export DATA_PATH= # absolute path to data directory
-export OUTPUT_PATH= # absolute path to model checkpoint
+export CODE_PATH=/u/scr/yuhuiz/develop/factCC/modeling # absolute path to modeling directory
+export DATA_PATH=/u/scr/yuhuiz/develop/factCC/pregenerated_data/generated_data/data-pointers # absolute path to data directory
+export OUTPUT_PATH=/u/scr/yuhuiz/develop/factCC/pretrained_models/factccx-cnndm-train # absolute path to model checkpoint
+
 
 export TASK_NAME=factcc_generated
 export MODEL_NAME=bert-base-uncased
 
-python3 $CODE_PATH/run.py \
+python $CODE_PATH/run.py \
   --task_name $TASK_NAME \
   --do_train \
   --do_eval \

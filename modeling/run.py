@@ -39,7 +39,7 @@ from pytorch_transformers import (WEIGHTS_NAME, BertConfig, BertForSequenceClass
 from pytorch_transformers import AdamW, WarmupLinearSchedule
 
 logger = logging.getLogger(__name__)
-#wandb.init(project="entailment-metric")
+wandb.init(project="entailment-metric")
 
 ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) for conf in (BertConfig,)), ())
 
@@ -279,16 +279,16 @@ def evaluate(args, model, tokenizer, prefix=""):
     confs = confs.tolist()
     
     # ---------------------------------------------------------------------------
-    fout = open('output.txt', 'w')
-    for pred, conf, span, raw_text in zip(preds, confs, spans, raw_texts):
-        label = 'CORRECT' if pred == 0 else 'INCORRECT'
-        src = raw_text[2][span[0]: span[1]]
-        gen = raw_text[2][span[2]: span[3]]
-        fout.write(label + '\t' + str(conf) + '\n')
-        fout.write(' '.join(src) + '\n')
-        fout.write(' '.join(gen) + '\n')
-        fout.write('-'*63+'\n')
-    # ---------------------------------------------------------------------------
+    # fout = open(args.data_dir + '/output.txt', 'w')
+    # for pred, conf, span, raw_text in zip(preds, confs, spans, raw_texts):
+    #     label = 'CORRECT' if pred == 0 else 'INCORRECT'
+    #     src = raw_text[2][span[0]: span[1]]
+    #     gen = raw_text[2][span[2]: span[3]]
+    #     fout.write(label + '\t' + str(conf) + '\n')
+    #     # fout.write(' '.join(src) + '\n')
+    #     # fout.write(' '.join(gen) + '\n')
+    #     # fout.write('-'*63+'\n')
+    # # ---------------------------------------------------------------------------
 
     return results
 
@@ -308,6 +308,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
     if os.path.exists(cached_features_file):
         logger.info("Loading features from cached file %s", cached_features_file)
         features = torch.load(cached_features_file)
+        raw_texts = []
     else:
         logger.info("Creating features from dataset file at %s", args.data_dir)
         label_list = processor.get_labels()
@@ -450,7 +451,7 @@ def main():
     # Setup logging
     logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                         datefmt = '%m/%d/%Y %H:%M:%S',
-                        level = logging.ERROR if args.local_rank in [-1, 0] else logging.WARN)
+                        level = logging.INFO if args.local_rank in [-1, 0] else logging.WARN)
     logger.warning("Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
                     args.local_rank, device, args.n_gpu, bool(args.local_rank != -1), args.fp16)
 
@@ -492,7 +493,7 @@ def main():
 
     # Training
     if args.do_train:
-        train_dataset = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
+        train_dataset, raw_texts = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
         global_step, tr_loss = train(args, train_dataset, model, tokenizer)
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
 

@@ -4,6 +4,8 @@ pregenerated_data/
 pretrained_models/
 *.py[cod]
 *$py.class
+.vscode/
+modeling/scripts/output/
 
 # C extensions
 *.so

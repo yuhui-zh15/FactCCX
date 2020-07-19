@@ -3,7 +3,7 @@
 
 # UPDATE PATHS BEFORE RUNNING SCRIPT
 export CODE_PATH=/u/scr/yuhuiz/develop/Factual-Summarization/scorer/entailscore/factCC/modeling # absolute path to modeling directory
-export DATA_PATH=/u/scr/yuhuiz/develop/Factual-Summarization/scorer/entailscore/factCC/pregenerated_data/xsum # absolute path to data directory
+export DATA_PATH=/u/scr/yuhuiz/develop/Factual-Summarization/scorer/entailscore/factCC/pregenerated_data/generated_data/data-pointers # absolute path to data directory
 export CKPT_PATH=/u/scr/yuhuiz/develop/Factual-Summarization/scorer/entailscore/factCC/pretrained_models/factcc-checkpoint # absolute path to model checkpoint
 
 export TASK_NAME=factcc_annotated

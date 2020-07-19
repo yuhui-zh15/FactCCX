@@ -130,12 +130,12 @@ class FactCCGeneratedProcessor(DataProcessor):
         """Creates examples for the training and dev sets."""
         examples = []
         for example in lines:
-            guid = example["id"]
+            guid = None # example["id"]
             text_a = example["text"]
             text_b = example["claim"]
             label = example["label"]
-            extraction_span = example["extraction_span"]
-            augmentation_span = example["augmentation_span"]
+            extraction_span = None # example["extraction_span"]
+            augmentation_span = None # example["augmentation_span"]
 
             examples.append(
                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label,
